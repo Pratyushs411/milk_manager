@@ -31,7 +31,7 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   CalendarFormat _calendarFormat = CalendarFormat.month;
   DateTime _selectedDay = DateTime.now();
-  Map<DateTime, int> _consumptionData = {};
+  Map<DateTime, double> _consumptionData = {};
   Map<int, double> _monthlyPriceData = {}; // Store price per month
   Map<int, double> _monthlyTotalPrice = {}; // Store total price per month
 
@@ -39,9 +39,9 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
     final box = Hive.box('milkConsumption');
-    _consumptionData = Map<DateTime, int>.from(box.get('data', defaultValue: {}));
-    _monthlyPriceData = Map<int, double>.from(box.get('price', defaultValue: {}));
-    _monthlyTotalPrice = Map<int, double>.from(box.get('monthlyTotal', defaultValue: {}));
+    _consumptionData = Map<DateTime, double>.from(box.get('data', defaultValue: {}).map((key, value) => MapEntry(DateTime.parse(key), value.toDouble())));
+    _monthlyPriceData = Map<int, double>.from(box.get('price', defaultValue: {}).map((key, value) => MapEntry(int.parse(key), value.toDouble())));
+    _monthlyTotalPrice = Map<int, double>.from(box.get('monthlyTotal', defaultValue: {}).map((key, value) => MapEntry(int.parse(key), value.toDouble())));
     _calculateMonthlyTotals(); // Calculate monthly totals at startup
   }
 
@@ -53,92 +53,92 @@ class _MyHomePageState extends State<MyHomePage> {
       _monthlyTotalPrice[date.month] = (_monthlyTotalPrice[date.month] ?? 0.0) + (consumption * price);
     });
     final box = Hive.box('milkConsumption');
-    box.put('monthlyTotal', _monthlyTotalPrice); // Save monthly totals
+    box.put('monthlyTotal', _monthlyTotalPrice.map((k, v) => MapEntry(k.toString(), v))); // Save monthly totals
   }
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
-        builder: (BuildContext context, BoxConstraints constraints) {
-          return Scaffold(
-            appBar: AppBar(
-              title: Text('Milk Consumption Tracker'),
-              backgroundColor: Colors.blue,
-              foregroundColor: Colors.white,
-            ),
-            body: Column(
-              children: [
-                TableCalendar(
-                  firstDay: DateTime.utc(2020, 1, 1),
-                  lastDay: DateTime.utc(2030, 12, 31),
-                  focusedDay: _selectedDay,
-                  calendarFormat: _calendarFormat,
-                  availableCalendarFormats: const { // Disable calendar format toggle
-                    CalendarFormat.month: 'Month',
+      builder: (BuildContext context, BoxConstraints constraints) {
+        return Scaffold(
+          appBar: AppBar(
+            title: Text('Milk Consumption Tracker'),
+            backgroundColor: Colors.blue,
+            foregroundColor: Colors.white,
+          ),
+          body: Column(
+            children: [
+              TableCalendar(
+                firstDay: DateTime.utc(2020, 1, 1),
+                lastDay: DateTime.utc(2030, 12, 31),
+                focusedDay: _selectedDay,
+                calendarFormat: _calendarFormat,
+                availableCalendarFormats: const { // Disable calendar format toggle
+                  CalendarFormat.month: 'Month',
+                },
+                onDaySelected: (selectedDay, focusedDay) {
+                  setState(() {
+                    _selectedDay = selectedDay;
+                  });
+                },
+                selectedDayPredicate: (day) {
+                  return isSameDay(_selectedDay, day);
+                },
+                calendarBuilders: CalendarBuilders(
+                  defaultBuilder: (context, day, focusedDay) {
+                    if (_consumptionData[day] != null) {
+                      return Container(
+                        margin: const EdgeInsets.all(6.0),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: Colors.blue,
+                          borderRadius: BorderRadius.circular(8.0),
+                        ),
+                        child: Text(
+                          '${_consumptionData[day]} KG',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      );
+                    }
+                    return null;
                   },
-                  onDaySelected: (selectedDay, focusedDay) {
-                    setState(() {
-                      _selectedDay = selectedDay;
-                    });
-                  },
-                  selectedDayPredicate: (day) {
-                    return isSameDay(_selectedDay, day);
-                  },
-                  calendarBuilders: CalendarBuilders(
-                    defaultBuilder: (context, day, focusedDay) {
-                      if (_consumptionData[day] != null) {
-                        return Container(
-                          margin: const EdgeInsets.all(6.0),
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: Colors.blue,
-                            borderRadius: BorderRadius.circular(8.0),
-                          ),
-                          child: Text(
-                            '${_consumptionData[day]} KG',
-                            style: TextStyle(color: Colors.white),
-                          ),
-                        );
-                      }
-                      return null;
-                    },
+                ),
+              ),
+              ElevatedButton(
+                onPressed: _showInputDialog,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  elevation: 5,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                ElevatedButton(
-                  onPressed: _showInputDialog,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    elevation: 5,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: const Text(
-                    'Add/Edit Milk Consumption',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                child: const Text(
+                  'Add/Edit Milk Consumption',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: _buildConsumptionInfo(),
-                    ),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: _buildConsumptionInfo(),
                   ),
                 ),
-              ],
-            ),
-          );
-        }
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
   Widget _buildConsumptionInfo() {
-    int? consumption = _consumptionData[_selectedDay];
+    double? consumption = _consumptionData[_selectedDay];
     double price = _monthlyPriceData[_selectedDay.month] ?? 0.0; // Default price is 0.0
     double monthlyTotalPrice = _monthlyTotalPrice[_selectedDay.month] ?? 0.0; // Monthly total price
 
@@ -215,7 +215,7 @@ class _MyHomePageState extends State<MyHomePage> {
           actions: [
             TextButton(
               onPressed: () {
-                final consumption = int.tryParse(_consumptionController.text);
+                final consumption = double.tryParse(_consumptionController.text);
                 final price = double.tryParse(_priceController.text);
                 if (consumption != null && price != null) {
                   setState(() {
@@ -224,9 +224,9 @@ class _MyHomePageState extends State<MyHomePage> {
                     _calculateMonthlyTotals(); // Recalculate monthly totals
 
                     final box = Hive.box('milkConsumption');
-                    box.put('data', _consumptionData);
-                    box.put('price', _monthlyPriceData);
-                    box.put('monthlyTotal', _monthlyTotalPrice);
+                    box.put('data', _consumptionData.map((k, v) => MapEntry(k.toString(), v)));
+                    box.put('price', _monthlyPriceData.map((k, v) => MapEntry(k.toString(), v)));
+                    box.put('monthlyTotal', _monthlyTotalPrice.map((k, v) => MapEntry(k.toString(), v)));
                   });
                   Navigator.of(context).pop();
                 }
@@ -239,3 +239,4 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 }
+
