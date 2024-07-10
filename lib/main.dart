@@ -95,7 +95,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           borderRadius: BorderRadius.circular(8.0),
                         ),
                         child: Text(
-                          '${_consumptionData[day]} KG',
+                          '${_consumptionData[day]}',
                           style: TextStyle(color: Colors.white),
                         ),
                       );
